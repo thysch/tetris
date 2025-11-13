@@ -1,5 +1,10 @@
 // this version has a comment
 
+import processing.sound.*;
+SoundFile file;
+SoundFile file2;
+SoundFile file3;
+
 int width = 800;
 int height = 800;
 
@@ -34,9 +39,18 @@ Shape currentShape;
 
 int initalShape = int(random(7));
 
+int linesCleared = 0;
+int score = 0;
+
 void setup() {
   size(800, 800);
   currentShape = new Shape(initalShape, 3, 0);
+  
+  // Load a soundfile from the /data folder of the sketch and play it back
+  file = new SoundFile(this, "laserShoot.wav");
+  file2 = new SoundFile(this, "powerUp.wav");
+  file3 = new SoundFile(this, "bruh.mp3");
+  
 }
 
 
@@ -68,21 +82,21 @@ void draw() {
 }
 
 void drawGrid() {
-
-
-
   noFill();
   stroke(180);
-
-  for (int j = 0; j < ROWS; j++) {
-
-
-    int y = startY + (j * GRIDSIZE);
-    for (int i = 0; i < COLS; i++) {
-      int x = startX + (i * GRIDSIZE);
-      rect(x, y, GRIDSIZE, GRIDSIZE);
-    }
+  for (int j = 0; j <= ROWS; j++) {  // ← = ROWS for bottom line
+    int y = startY + (j * GRIDSIZE);  // j=0=top visual, j=19=bottom
+    line(startX, y, startX + COLS*GRIDSIZE, y);  // Horizontal lines
   }
+  for (int i = 0; i <= COLS; i++) {
+    int x = startX + (i * GRIDSIZE);
+    line(x, startY, x, startY + ROWS*GRIDSIZE);  // Vertical lines
+    for (int j = 0; j < ROWS; j += 2) {
+    text(""+j, startX-30, startY + (j*GRIDSIZE) + 15);
+  }
+  }
+  
+ 
 }
 
 void greenRectangle() {
@@ -167,6 +181,9 @@ void lockShape() {
       }
     }
   }
+  
+  clearLines();
+
 }
 
 Shape newRandomShape() {
@@ -185,6 +202,11 @@ void debug() {
   text("frameCount: " + frameCount, 10, 10);
   text("frameRate: "  +  frameRate, 10, 30);
   text("ticks: "  +  ticks, 10, 50);
+
+  text("Lines: " + linesCleared, 10, 70);
+  text("Score: " + score, 10, 90);
+  text("Level: " + level, 10, 110);
+
 
   // debug border
   noFill();
@@ -398,10 +420,11 @@ class Shape {
       color(0, 255, 255), // I: Cyan
       color(255, 255, 0), // O: Yellow
       color(255, 0, 255), // T: Purple
-      color(0, 0, 255), // J: Blue
-      color(255, 165, 0), // L: Orange
       color(0, 255, 0), // S: Green
-      color(255, 0, 0)      // Z: Red
+      color(255, 0, 0),     // Z: Red
+      color(0, 0, 255), // J: Blue
+      color(255, 165, 0) // L: Orange
+            
     };
     return colors[id];
   }
@@ -530,10 +553,10 @@ color getPieceColor(int id) {
     color(0, 255, 255), // I: Cyan
     color(255, 255, 0), // O: Yellow
     color(255, 0, 255), // T: Purple
-    color(0, 0, 255), // J: Blue
-    color(255, 165, 0), // L: Orange
     color(0, 255, 0), // S: Green
-    color(255, 0, 0)      // Z: Red
+    color(255, 0, 0),      // Z: Red
+    color(0, 0, 255), // J: Blue
+    color(255, 165, 0) // L: Orange
   };
   return colors[id];
 }
@@ -549,4 +572,64 @@ void drawFloor() {
       }
     }
   }
+}
+
+
+
+boolean isFull(int row) {
+  for (int x = 0; x < COLS; x++) {
+    if (floorBlocks[x][row] <= 0) return false;  // ← >0 → >=1 safer
+  }
+  return true;
+}
+
+
+
+void clearLines() {
+  println("clearLines() START");
+  
+  int writeY = ROWS - 1;  // Start at BOTTOM
+  int cleared = 0;
+  
+  // Scan from BOTTOM to TOP
+  for (int readY = ROWS - 1; readY >= 0; readY--) {
+    if (isFull(readY)) {
+      cleared++;
+      println("CLEARED row " + readY);
+      // Skip this full row
+    } else {
+      // Copy non-full row DOWN to writeY
+      if (writeY != readY) {
+        for (int x = 0; x < COLS; x++) {
+          floorBlocks[x][writeY] = floorBlocks[x][readY];
+        }
+      }
+      writeY--;  // Move write pointer UP
+    }
+  }
+  
+  // Clear everything ABOVE the new top (from 0 to writeY)
+  for (int y = 0; y <= writeY; y++) {
+    for (int x = 0; x < COLS; x++) {
+      floorBlocks[x][y] = 0;
+    }
+  }
+  
+  // Update score
+  if (cleared > 0) {
+    
+    linesCleared += cleared;
+    int[] points = {0, 40, 100, 300, 1200};
+    score += points[cleared] * (level + 1);
+    
+    if (cleared == 4) {
+      println("TETRIS!");
+      file3.play();
+    } else {
+      println("Cleared " + cleared + " line(s)!");
+      file.play();
+    }
+  }
+  
+  println("clearLines() END - cleared: " + cleared);
 }
